@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>OCR iPhone</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    body{font-family:system-ui;margin:0;padding:1rem;background:#fafafa}
+    button{width:100%;padding:1rem;font-size:1.3rem;margin:.5rem 0}
+    textarea{width:100%;height:150px;font-size:1.1rem}
+    #video{width:100%;border:1px solid #ccc}
+  </style>
+</head>
+<body>
+
+  <h1>📷 OCR iPhone</h1>
+  <button id="openCam">Autoriser caméra</button>
+  <video id="video" playsinline autoplay></video>
+  <button id="snapBtn" disabled>📸 Prendre photo</button>
+  <button id="scanBtn" disabled>🔍 Lancer OCR</button>
+
+  <h3>Texte :</h3>
+  <textarea id="out" placeholder="Texte apparaîtra ici…"></textarea>
+
+  <button id="readBtn">🔊 Lire</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+    const video=document.getElementById('video');
+    const openCam=document.getElementById('openCam');
+    const snapBtn=document.getElementById('snapBtn');
+    const scanBtn=document.getElementById('scanBtn');
+    const out=document.getElementById('out');
+    const readBtn=document.getElementById('readBtn');
+
+    let stream, imgBlob;
+
+    openCam.onclick=async()=>{
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        video.srcObject=stream;
+        snapBtn.disabled=false;
+      }catch(e){alert('Caméra refusée – utilise HTTPS et Safari');}
+    };
+
+    snapBtn.onclick=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+      canvas.getContext('2d').drawImage(video,0,0);
+      canvas.toBlob(blob=>{imgBlob=blob; scanBtn.disabled=false;},'image/png');
+    };
+
+    scanBtn.onclick=async()=>{
+      out.value='⏳ OCR…';
+      const worker=await Tesseract.createWorker('fra');
+      try{
+        const ret=await worker.recognize(imgBlob);
+        out.value=ret.data.text;
+      }catch(err){out.value='Erreur : '+err.message;}
+      finally{worker.terminate();}
+    };
+
+    readBtn.onclick=()=>{
+      const u=new SpeechSynthesisUtterance(out.value);
+      u.lang='fr-FR';
+      speechSynthesis.speak(u);
+    };
+  </script>
+
+</body>
+</html>
