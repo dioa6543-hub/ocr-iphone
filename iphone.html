@@ -2,42 +2,75 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>OCR iPhone + fond + sauvegarde</title>
+  <title>OCR iPhone / PC – fond JPG + PNG ou icône</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <style>
-    body{font-family:system-ui;margin:0;padding:1rem;background:#fafafa}
-    button{width:100%;padding:1rem;font-size:1.3rem;margin:.5rem 0}
-    textarea{width:100%;height:150px;font-size:1.1rem}
-    #video{width:100%;border:1px solid #ccc}
-    /* fond décoratif (barre de recherche) si on détecte image.png/jpg */
-    .search-bar-bg{
-      height:60px;
-      background:url("image.png") center/cover no-repeat;
+    /* fond JPG partout */
+    html,body{
+      margin:0;
+      height:100%;
+      background:url("image.jpg") center/cover no-repeat fixed;
+      font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      color:#fff;
+      text-shadow:0 0 4px #000;
+    }
+    button{width:100%;max-width:400px;padding:.9rem;font-size:1.2rem;margin:.5rem auto;display:block}
+    textarea{width:100%;max-width:600px;height:180px;font-size:1rem;margin:auto;display:block}
+    #video{width:100%;max-width:600px;border:1px solid #ccc;margin:auto;display:block}
+    #pngIco{width:120px;height:120px;margin:1rem auto;display:block;border-radius:8px;object-fit:contain}
+    #dropZone{
+      border:2px dashed #ccc;
       border-radius:8px;
-      margin-bottom:1rem;
+      padding:2rem;
+      text-align:center;
+      margin:1rem auto;
+      max-width:600px;
+    }
+    .pcOnly{display:none} /* on va l’afficher sous Windows */
+    @media (min-width:900px){
+      .pcOnly{display:block}
     }
   </style>
 </head>
 <body>
 
-  <!-- fond conditionnel -->
-  <div id="topBg"></div>
+  <h1 style="text-align:center">📷 OCR iPhone / PC</h1>
 
-  <h1>📷 OCR iPhone</h1>
-  <button id="openCam">Autoriser caméra</button>
+  <!-- image PNG ou icône par défaut -->
+  <img id="pngIco" alt="icône">
+
+  <!-- Bouton iPhone -->
+  <button id="openCam">📷 Autoriser caméra</button>
   <video id="video" playsinline autoplay></video>
   <button id="snapBtn" disabled>📸 Prendre photo</button>
+
+  <!-- Zone PC (Windows, Linux, Mac) -->
+  <div class="pcOnly">
+    <div id="dropZone">Ou glisse-dépose une image ici<br><small>jpg, png, pdf</small></div>
+    <input type="file" id="fileInput" accept="image/*,.pdf" class="pcOnly">
+    <button id="scanFileBtn" disabled>🔍 Scanner le fichier</button>
+  </div>
+
+  <!-- OCR -->
   <button id="scanBtn" disabled>🔍 Lancer OCR</button>
 
-  <h3>Texte :</h3>
+  <!-- Résultat -->
+  <h3 style="text-align:center">Texte :</h3>
   <textarea id="out" placeholder="Texte apparaîtra ici…"></textarea>
 
+  <!-- Actions -->
   <button id="saveBtn">💾 Enregistrer le texte</button>
   <button id="readBtn">🔊 Lire</button>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
+    /* 1. Affiche image.png si elle existe, sinon icône caméra */
+    const ico=document.getElementById('pngIco');
+    fetch('image.png')
+      .then(r=>r.ok?ico.src='image.png':ico.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDE1YTMgMyAwIDEwMC02IDMgMyAwIDAwMCA2eiIvPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0yMCA1aC0zLjE3TDE1IDNIOUw3LjE3IDVINGEyIDIgMCAwMC0yIDJ2MTFhMiAyIDAgMDAyIDJoMTZhMiAyIDAgMDAyLTJWN2EyIDIgMCAwMC0yLTJ6bS0zIDEyaC02di0yaDZ2MnptMC00aC02di0yaDZ2MnptLTQgNEg4di0yaDZ2MnoiLz48L3N2Zz4=');
+
+    /* 2. Caméra (iPhone) */
     const video=document.getElementById('video');
     const openCam=document.getElementById('openCam');
     const snapBtn=document.getElementById('snapBtn');
@@ -45,29 +78,20 @@
     const out=document.getElementById('out');
     const saveBtn=document.getElementById('saveBtn');
     const readBtn=document.getElementById('readBtn');
-    const topBg=document.getElementById('topBg');
+    const fileInput=document.getElementById('fileInput');
+    const scanFileBtn=document.getElementById('scanFileBtn');
+    const dropZone=document.getElementById('dropZone');
 
     let stream, imgBlob;
 
-    /* 1. fond décoratif si image.png ou image.jpg existe */
-    fetch('image.png').then(r=>{
-      if(r.ok) topBg.innerHTML='<div class="search-bar-bg"></div>';
-    }).catch(()=>
-      fetch('image.jpg').then(r=>{
-        if(r.ok) topBg.innerHTML='<div class="search-bar-bg" style="background:url(\'image.jpg\') center/cover no-repeat;"></div>';
-      })
-    );
-
-    /* 2. Caméra */
+    /* ----- iPhone ----- */
     openCam.onclick=async()=>{
       try{
         stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
         video.srcObject=stream;
         snapBtn.disabled=false;
-      }catch(e){alert('Caméra refusée – utilise HTTPS et Safari');}
+      }catch(e){alert('Caméra refusée – HTTPS + Safari requis');}
     };
-
-    /* 3. Snapshot */
     snapBtn.onclick=()=>{
       const canvas=document.createElement('canvas');
       canvas.width=video.videoWidth; canvas.height=video.videoHeight;
@@ -75,33 +99,46 @@
       canvas.toBlob(blob=>{imgBlob=blob; scanBtn.disabled=false;},'image/png');
     };
 
-    /* 4. OCR */
-    scanBtn.onclick=async()=>{
-      out.value='⏳ OCR…';
+    /* ----- PC Windows / Linux / Mac ----- */
+    fileInput.onchange=e=>{
+      imgBlob=fileInput.files[0];
+      scanFileBtn.disabled=!imgBlob;
+    };
+    scanFileBtn.onclick=()=>doOCR(imgBlob);
+
+    /* glisser-déposer */
+    dropZone.ondragover=e=>{e.preventDefault(); dropZone.style.borderColor='#fff';};
+    dropZone.ondragleave=e=>{e.preventDefault(); dropZone.style.borderColor='#ccc';};
+    dropZone.ondrop=e=>{
+      e.preventDefault(); dropZone.style.borderColor='#ccc';
+      const f=e.dataTransfer.files[0];
+      if(f && (f.type.match(/image\/|application\/pdf/))){imgBlob=f; scanFileBtn.disabled=false;}
+    };
+
+    /* ----- OCR commun ----- */
+    scanBtn.onclick=()=>doOCR(imgBlob);
+
+    function doOCR(blob){
+      out.value='⏳ OCR en cours…';
       const worker=await Tesseract.createWorker('fra');
       try{
-        const ret=await worker.recognize(imgBlob);
+        const ret=await worker.recognize(blob);
         out.value=ret.data.text;
       }catch(err){out.value='Erreur : '+err.message;}
       finally{worker.terminate();}
-    };
+    }
 
-    /* 5. Sauvegarde */
+    /* ----- Sauvegarde & voix ----- */
     saveBtn.onclick=()=>{
-      const blob=new Blob([out.value],{type:'text/plain'});
-      const url=URL.createObjectURL(blob);
+      const b=new Blob([out.value],{type:'text/plain'});
+      const u=URL.createObjectURL(b);
       const a=document.createElement('a');
-      a.href=url;
-      a.download='texte_ocr.txt';
-      a.click();
-      URL.revokeObjectURL(url);
+      a.href=u; a.download='texte_ocr.txt'; a.click();
+      URL.revokeObjectURL(u);
     };
-
-    /* 6. Lecture vocale */
     readBtn.onclick=()=>{
       const u=new SpeechSynthesisUtterance(out.value);
-      u.lang='fr-FR';
-      speechSynthesis.speak(u);
+      u.lang='fr-FR'; speechSynthesis.speak(u);
     };
   </script>
 
