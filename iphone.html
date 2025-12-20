@@ -2,17 +2,22 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>OCR – bouton visible iPhone</title>
+  <title>OCR – boutons visibles iPhone</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="icon" type="image/png" href="https://dioa6543-hub.github.io/ocr-iphone/logo.png">
   <link rel="apple-touch-icon" sizes="512x512" href="https://dioa6543-hub.github.io/ocr-iphone/logo.png">
   <style>
     html,body{margin:0;height:100%;background:url("image.jpg") center/cover no-repeat fixed;font-family:system-ui;color:#fff;text-shadow:0 0 4px #000}
+    #gBar{display:flex;align-items:center;max-width:600px;margin:1rem auto;background:#fff;border-radius:24px;padding:.4rem .8rem;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    #gBar img{height:28px;margin-right:8px}
+    #gBar input{flex:1;border:none;outline:none;font-size:1rem;color:#000;background:transparent}
     button{width:100%;max-width:400px;padding:.9rem;font-size:1.2rem;margin:.5rem auto;display:block}
     textarea{width:100%;max-width:600px;height:180px;font-size:1rem;margin:auto;display:block}
+    #video{width:100%;max-width:600px;border:1px solid #ccc;margin:auto;display:block}
     #langBox{text-align:center;margin:1rem auto;max-width:600px;background:rgba(0,0,0,.4);border-radius:8px;padding:.5rem}
     #langBox select{font-size:1rem;padding:.3rem}
+    #dropZone{border:2px dashed #ccc;border-radius:8px;padding:2rem;text-align:center;margin:1rem auto;max-width:600px}
   </style>
 </head>
 <body>
@@ -33,64 +38,95 @@
   </select>
 </div>
 
-<!-- Bouton visible partout -->
-<button id="loadTxtBtn">📁 Fichier</button>
-<input type="file" id="txtInput" accept=".txt,.text" style="display:none">
+<!-- Barre Google-like -->
+<div id="gBar">
+  <img src="logo.png" alt="logo">
+  <input type="text" id="gSearch" placeholder="Rechercher…">
+</div>
+
+<h1 style="text-align:center" id="title">📷 OCR iPhone / PC</h1>
+
+<!-- iPhone : AUTORISER CAMÉRA (visible partout) -->
+<button id="openCam">📷 Autoriser caméra</button>
+<video id="video" playsinline autoplay></video>
+<button id="snapBtn" disabled>📸 Prendre photo</button>
+
+<!-- PC : CHARGER FICHIER (visible partout) -->
+<button id="chooseBtn">📁 Charger un fichier</button>
+<input type="file" id="fileInput" accept="image/*,.pdf" style="display:none">
+<div id="dropZone">Ou glisse-dépose une image ici<br><small>jpg, png, pdf</small></div>
+<button id="scanFileBtn" disabled>🔍 Scanner le fichier</button>
+
+<!-- OCR -->
+<button id="scanBtn" disabled>🔍 Lancer OCR</button>
 
 <!-- Texte -->
 <h3 id="outTitle">Texte :</h3>
 <textarea id="out" placeholder="Texte apparaîtra ici…"></textarea>
 
 <!-- Actions -->
+<button id="saveBtn">💾 Enregistrer le texte</button>
 <button id="readBtn">🔊 Lire</button>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
   /* TRADUCTIONS 9 langues */
   const texts={
-    fr:{loadTxtBtn:"📁 Fichier",outTitle:"Texte :",readBtn:"🔊 Lire",placeholderOut:"Texte apparaîtra ici…"},
-    en:{loadTxtBtn:"📁 File",outTitle:"Text :",readBtn:"🔊 Read",placeholderOut:"Text will appear here…"},
-    es:{loadTxtBtn:"📁 Archivo",outTitle:"Texto :",readBtn:"🔊 Leer",placeholderOut:"El texto aparecerá aquí…"},
-    ar:{loadTxtBtn:"📁 ملف",outTitle:"النص :",readBtn:"🔊 استمع",placeholderOut:"سيظهر النص هنا…"},
-    zh:{loadTxtBtn:"📁 文件",outTitle:"文本 :",readBtn:"🔊 朗读",placeholderOut:"文本将出现在这里…"},
-    it:{loadTxtBtn:"📁 File",outTitle:"Testo :",readBtn:"🔊 Ascolta",placeholderOut:"Il testo apparirà qui…"},
-    de:{loadTxtBtn:"📁 Datei",outTitle:"Text :",readBtn:"🔊 Vorlesen",placeholderOut:"Text erscheint hier…"},
-    pt:{loadTxtBtn:"📁 Arquivo",outTitle:"Texto :",readBtn:"🔊 Ouvir",placeholderOut:"O texto aparecerá aqui…"},
-    ru:{loadTxtBtn:"📁 Файл",outTitle:"Текст :",readBtn:"🔊 Слушать",placeholderOut:"Текст появится здесь…"}
+    fr:{chooseBtn:"📁 Charger un fichier",dropZone:"Ou glisse-dépose une image ici",openCam:"📷 Autoriser caméra",snapBtn:"📸 Prendre photo",scanFileBtn:"🔍 Scanner le fichier",scanBtn:"🔍 Lancer OCR",outTitle:"Texte :",saveBtn:"💾 Enregistrer le texte",readBtn:"🔊 Lire",placeholderOut:"Texte apparaîtra ici…",gPlaceholder:"Rechercher…"},
+    en:{chooseBtn:"📁 Choose file",dropZone:"Or drag & drop an image here",openCam:"📷 Allow camera",snapBtn:"📸 Take photo",scanFileBtn:"🔍 Scan file",scanBtn:"🔍 Launch OCR",outTitle:"Text :",saveBtn:"💾 Save text",readBtn:"🔊 Read",placeholderOut:"Text will appear here…",gPlaceholder:"Search…"},
+    es:{chooseBtn:"📁 Elegir archivo",dropZone:"O arrastra y suelta una imagen aquí",openCam:"📷 Permitir cámara",snapBtn:"📸 Tomar foto",scanFileBtn:"🔍 Escanear archivo",scanBtn:"🔍 Lanzar OCR",outTitle:"Texto :",saveBtn:"💾 Guardar texto",readBtn:"🔊 Leer",placeholderOut:"El texto aparecerá aquí…",gPlaceholder:"Buscar…"},
+    ar:{chooseBtn:"📁 اختر ملفًا",dropZone:"أو اسحب وأفلت صورة هنا",openCam:"📷 السماح بالكاميرا",snapBtn:"📸 التقاط صورة",scanFileBtn:"🔍 مسح الملف",scanBtn:"🔍 تشغيل OCR",outTitle:"النص :",saveBtn:"💾 حفظ النص",readBtn:"🔊 استمع",placeholderOut:"سيظهر النص هنا…",gPlaceholder:"بحث…"},
+    zh:{chooseBtn:"📁 选择文件",dropZone:"或在此处拖放图像",openCam:"📷 允许相机",snapBtn:"📸 拍照",scanFileBtn:"🔍 扫描文件",scanBtn:"🔍 启动OCR",outTitle:"文本 :",saveBtn:"💾 保存文本",readBtn:"🔊 朗读",placeholderOut:"文本将出现在这里…",gPlaceholder:"搜索…"},
+    it:{chooseBtn:"📁 Scegli file",dropZone:"O trascina un'immagine qui",openCam:"📷 Consenti fotocamera",snapBtn:"📸 Scatta foto",scanFileBtn:"🔍 Scansiona file",scanBtn:"🔍 Avvia OCR",outTitle:"Testo :",saveBtn:"💾 Salva testo",readBtn:"🔊 Ascolta",placeholderOut:"Il testo apparirà qui…",gPlaceholder:"Cerca…"},
+    de:{chooseBtn:"📁 Datei auswählen",dropZone:"Oder Bild hier ablegen",openCam:"📷 Kamera erlauben",snapBtn:"📸 Foto machen",scanFileBtn:"🔍 Datei scannen",scanBtn:"🔍 OCR starten",outTitle:"Text :",saveBtn:"💾 Text speichern",readBtn:"🔊 Vorlesen",placeholderOut:"Text erscheint hier…",gPlaceholder:"Suchen…"},
+    pt:{chooseBtn:"📁 Escolher arquivo",dropZone:"Ou arraste e solte uma imagem aqui",openCam:"📷 Permitir câmera",snapBtn:"📸 Tirar foto",scanFileBtn:"🔍 Escanear arquivo",scanBtn:"🔍 Iniciar OCR",outTitle:"Texto :",saveBtn:"💾 Salvar texto",readBtn:"🔊 Ouvir",placeholderOut:"O texto aparecerá aqui…",gPlaceholder:"Buscar…"},
+    ru:{chooseBtn:"📁 Выбрать файл",dropZone:"Или перетащите изображение сюда",openCam:"📷 Разрешить камеру",snapBtn:"📸 Сделать фото",scanFileBtn:"🔍 Сканировать файл",scanBtn:"🔍 Запустить OCR",outTitle:"Текст :",saveBtn:"💾 Сохранить текст",readBtn:"🔊 Слушать",placeholderOut:"Текст появится здесь…",gPlaceholder:"Поиск…"}
   };
 
+  /* Traduction + mémorisation */
   const langSel=document.getElementById('langSel');
-  const els={loadTxtBtn:document.getElementById('loadTxtBtn'),outTitle:document.getElementById('outTitle'),readBtn:document.getElementById('readBtn'),out:document.getElementById('out')};
+  const els={
+    chooseBtn:document.getElementById('chooseBtn'),dropZone:document.getElementById('dropZone'),title:document.getElementById('title'),openCam:document.getElementById('openCam'),snapBtn:document.getElementById('snapBtn'),scanFileBtn:document.getElementById('scanFileBtn'),scanBtn:document.getElementById('scanBtn'),outTitle:document.getElementById('outTitle'),saveBtn:document.getElementById('saveBtn'),readBtn:document.getElementById('readBtn'),out:document.getElementById('out'),gSearch:document.getElementById('gSearch')
+  };
   function setLang(l){
     const t=texts[l];
     Object.keys(t).forEach(k=>{if(els[k])els[k].textContent=t[k];});
-    els.out.placeholder=t.placeholderOut;
-    localStorage.setItem('txtLang',l);
+    els.out.placeholder=t.placeholderOut; els.gSearch.placeholder=t.gPlaceholder;
+    localStorage.setItem('ocrLang',l);
   }
   langSel.onchange=()=>setLang(langSel.value);
-  const saved=localStorage.getItem('txtLang'); if(saved) langSel.value=saved;
+  const saved=localStorage.getItem('ocrLang'); if(saved) langSel.value=saved;
   setLang(langSel.value);
 
-  /* Charger un fichier texte */
-  const loadTxtBtn=document.getElementById('loadTxtBtn');
-  const txtInput=document.getElementById('txtInput');
-  const out=document.getElementById('out');
-  const readBtn=document.getElementById('readBtn');
-
-  loadTxtBtn.onclick=()=>txtInput.click();
-  txtInput.onchange=e=>{
-    const file=txtInput.files[0];
-    if(!file) return;
-    const reader=new FileReader();
-    reader.onload=ev=>{ out.value=ev.target.result; };
-    reader.readAsText(file);
+  /* Google bar (redirection) */
+  gSearch.onkeyup=e=>{
+    if(e.key==='Enter'){
+      const q=gSearch.value.trim(); if(q) window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank');
+    }
   };
 
-  /* Lecture vocale */
-  readBtn.onclick=()=>{
-    const u=new SpeechSynthesisUtterance(out.value);
-    u.lang='fr-FR';
-    speechSynthesis.speak(u);
+  /* Bouton « Charger un fichier » + glisser-déposer */
+  const chooseBtn=document.getElementById('chooseBtn');
+  const fileInput=document.getElementById('fileInput');
+  const scanFileBtn=document.getElementById('scanFileBtn');
+  const dropZone=document.getElementById('dropZone');
+  const video=document.getElementById('video'),openCam=document.getElementById('openCam'),snapBtn=document.getElementById('snapBtn'),scanBtn=document.getElementById('scanBtn'),out=document.getElementById('out'),saveBtn=document.getElementById('saveBtn'),readBtn=document.getElementById('readBtn');
+  let stream,imgBlob;
+  chooseBtn.onclick=()=>fileInput.click();
+  fileInput.onchange=e=>{imgBlob=fileInput.files[0];scanFileBtn.disabled=!imgBlob;};
+  dropZone.ondragover=e=>{e.preventDefault(); dropZone.style.borderColor='#fff';};
+  dropZone.ondragleave=e=>{e.preventDefault(); dropZone.style.borderColor='#ccc';};
+  dropZone.ondrop=e=>{
+    e.preventDefault(); dropZone.style.borderColor='#ccc';
+    const f=e.dataTransfer.files[0];
+    if(f&&(f.type.match(/image\/|application\/pdf/))){imgBlob=f;scanFileBtn.disabled=false;}
   };
+  openCam.onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=stream;snapBtn.disabled=false;}catch(e){alert('Caméra refusée – HTTPS + Safari');}};
+  snapBtn.onclick=()=>{const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);c.toBlob(b=>{imgBlob=b;scanBtn.disabled=false;},'image/png');};
+  scanFileBtn.onclick=()=>doOCR(imgBlob); scanBtn.onclick=()=>doOCR(imgBlob);
+  async function doOCR(b){out.value='⏳ OCR…';const w=await Tesseract.createWorker('fra');try{const r=await w.recognize(b);out.value=r.data.text;}catch(err){out.value='Erreur : '+err.message;}finally{w.terminate();}}
+  saveBtn.onclick=()=>{const b=new Blob([out.value],{type:'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='texte_ocr.txt';a.click();URL.revokeObjectURL(u);}
+  readBtn.onclick=()=>{const u=new SpeechSynthesisUtterance(out.value);u.lang='fr-FR';speechSynthesis.speak(u);}
 </script>
 
 </body>
