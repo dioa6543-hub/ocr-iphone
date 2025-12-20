@@ -2,52 +2,71 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>OCR iPhone / PC – icône complète</title>
+  <title>OCR multi – choisir fichier</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- Icônes : PC + iPhone -->
   <link rel="icon" type="image/png" href="https://dioa6543-hub.github.io/ocr-iphone/logo.png">
   <link rel="apple-touch-icon" sizes="512x512" href="https://dioa6543-hub.github.io/ocr-iphone/logo.png">
   <style>
-    /* fond JPG partout */
     html,body{margin:0;height:100%;background:url("image.jpg") center/cover no-repeat fixed;font-family:system-ui;color:#fff;text-shadow:0 0 4px #000}
-    /* barre de recherche (logo PNG) */
     #searchBar{display:flex;align-items:center;justify-content:center;padding:.6rem;background:rgba(0,0,0,.25);border-radius:8px;margin:1rem auto;max-width:600px}
-    #searchBar img{height:40px;margin-right:10px}
-    #searchBar input{flex:1;padding:.5rem;font-size:1rem;border:none;border-radius:4px;background:rgba(255,255,255,.9);color:#000}
+    #searchBar img{height:40px;margin-right:10px}#searchBar input{flex:1;padding:.5rem;font-size:1rem;border:none;border-radius:4px;background:rgba(255,255,255,.9);color:#000}
     button{width:100%;max-width:400px;padding:.9rem;font-size:1.2rem;margin:.5rem auto;display:block}
     textarea{width:100%;max-width:600px;height:180px;font-size:1rem;margin:auto;display:block}
     #video{width:100%;max-width:600px;border:1px solid #ccc;margin:auto;display:block}
-    .pcOnly{display:none} @media (min-width:900px){.pcOnly{display:block}}
+    .pcOnly{display:none}@media (min-width:900px){.pcOnly{display:block}}
+    #langBox{text-align:center;margin:1rem auto;max-width:600px;background:rgba(0,0,0,.4);border-radius:8px;padding:.5rem}
+    #langBox select{font-size:1rem;padding:.3rem}
+    #dropZone{border:2px dashed #ccc;border-radius:8px;padding:2rem;text-align:center;margin:1rem auto;max-width:600px}
   </style>
 </head>
 <body>
 
-<!-- barre de recherche : logo PNG -->
-<div id="searchBar">
-  <img src="logo.png" alt="logo">
-  <input type="text" placeholder="Recherche (déco)">
+<!-- Langue -->
+<div id="langBox">
+  <label>🌐 Langue : </label>
+  <select id="langSel">
+    <option value="fr">Français</option>
+    <option value="en">English</option>
+    <option value="es">Español</option>
+    <option value="ar">العربية</option>
+    <option value="zh">中文</option>
+  </select>
 </div>
 
-<h1 style="text-align:center">📷 OCR iPhone / PC</h1>
+<!-- barre logo -->
+<div id="searchBar"><img src="logo.png" alt="logo"><input type="text" placeholder="Recherche (déco)"></div>
+<h1 style="text-align:center" id="title">📷 OCR iPhone / PC</h1>
 
 <!-- iPhone -->
 <button id="openCam">📷 Autoriser caméra</button>
 <video id="video" playsinline autoplay></video>
 <button id="snapBtn" disabled>📸 Prendre photo</button>
 
-<!-- PC -->
+<!-- PC : bouton + glisser-déposer -->
 <div class="pcOnly">
-  <input type="file" id="fileInput" accept="image/*,.pdf" class="pcOnly">
+  <button id="chooseBtn">📁 Choisir un fichier</button>
+  <input type="file" id="fileInput" accept="image/*,.pdf" style="display:none">
+  <div id="dropZone">Ou glisse-dépose une image ici<br><small>jpg, png, pdf</small></div>
   <button id="scanFileBtn" disabled>🔍 Scanner le fichier</button>
 </div>
 
 <!-- OCR -->
 <button id="scanBtn" disabled>🔍 Lancer OCR</button>
 
-<!-- Résultat -->
-<h3 style="text-align:center">Texte :</h3>
-<textarea id="out" placeholder="Texte apparaîtra ici…"></textarea>
+<!-- Texte brut -->
+<h3 id="rawTitle">Texte brut :</h3>
+<textarea id="rawText" placeholder="Texte apparaîtra ici…"></textarea>
+
+<!-- LONGUEUR + BOUTON TRADUIT -->
+<div id="longBox">
+  <label id="lenLabel">Ne garder que les lignes ≥ <input type="number" id="minLen" value="20" min="1" max="999"> caractères</label>
+  <button id="applyBtn">Appliquer</button>
+</div>
+
+<!-- Texte filtré -->
+<h3 id="outTitle">Texte filtré :</h3>
+<textarea id="out" placeholder="Texte filtré ici…"></textarea>
 
 <!-- Actions -->
 <button id="saveBtn">💾 Enregistrer le texte</button>
@@ -55,14 +74,59 @@
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-  /* caméra + OCR + sauvegarde + voix */
-  const video=document.getElementById('video'),openCam=document.getElementById('openCam'),snapBtn=document.getElementById('snapBtn'),scanBtn=document.getElementById('scanBtn'),out=document.getElementById('out'),saveBtn=document.getElementById('saveBtn'),readBtn=document.getElementById('readBtn'),fileInput=document.getElementById('fileInput'),scanFileBtn=document.getElementById('scanFileBtn');
+  /* TRADUCTIONS */
+  const texts={
+    fr:{chooseBtn:"📁 Choisir un fichier",dropZone:"Ou glisse-dépose une image ici",openCam:"📷 Autoriser caméra",snapBtn:"📸 Prendre photo",scanFileBtn:"🔍 Scanner le fichier",scanBtn:"🔍 Lancer OCR",rawTitle:"Texte brut :",outTitle:"Texte filtré :",lenLabel:"Ne garder que les lignes ≥",applyBtn:"Appliquer",saveBtn:"💾 Enregistrer le texte",readBtn:"🔊 Lire",placeholderRaw:"Texte apparaîtra ici…",placeholderOut:"Texte filtré ici…",noLine:"Aucune ligne ne dépasse la longueur choisie."},
+    en:{chooseBtn:"📁 Choose file",dropZone:"Or drag & drop an image here",openCam:"📷 Allow camera",snapBtn:"📸 Take photo",scanFileBtn:"🔍 Scan file",scanBtn:"🔍 Launch OCR",rawTitle:"Raw text :",outTitle:"Filtered text :",lenLabel:"Keep lines ≥",applyBtn:"Apply",saveBtn:"💾 Save text",readBtn:"🔊 Read",placeholderRaw:"Text will appear here…",placeholderOut:"Filtered text here…",noLine:"No line exceeds the chosen length."},
+    es:{chooseBtn:"📁 Elegir archivo",dropZone:"O arrastra y suelta una imagen aquí",openCam:"📷 Permitir cámara",snapBtn:"📸 Tomar foto",scanFileBtn:"🔍 Escanear archivo",scanBtn:"🔍 Lanzar OCR",rawTitle:"Texto bruto :",outTitle:"Texto filtrado :",lenLabel:"Mantener líneas ≥",applyBtn:"Aplicar",saveBtn:"💾 Guardar texto",readBtn:"🔊 Leer",placeholderRaw:"El texto aparecerá aquí…",placeholderOut:"Texto filtrado aquí…",noLine:"Ninguna línea supera la longitud elegida."},
+    ar:{chooseBtn:"📁 اختر ملفًا",dropZone:"أو اسحب وأفلت صورة هنا",openCam:"📷 السماح بالكاميرا",snapBtn:"📸 التقاط صورة",scanFileBtn:"🔍 مسح الملف",scanBtn:"🔍 تشغيل OCR",rawTitle:"النص الخام :",outTitle:"النص المصفى :",lenLabel:"احفظ الأسطر ≥",applyBtn:"تطبيق",saveBtn:"💾 حفظ النص",readBtn:"🔊 استمع",placeholderRaw:"سيظهر النص هنا…",placeholderOut:"النص المصفى هنا…",noLine:"لا توجد أسطر تتجاوز الطول المختار."},
+    zh:{chooseBtn:"📁 选择文件",dropZone:"或在此处拖放图像",openCam:"📷 允许相机",snapBtn:"📸 拍照",scanFileBtn:"🔍 扫描文件",scanBtn:"🔍 启动OCR",rawTitle:"原始文本 :",outTitle:"过滤文本 :",lenLabel:"保留行 ≥",applyBtn:"应用",saveBtn:"💾 保存文本",readBtn:"🔊 朗读",placeholderRaw:"文本将出现在这里…",placeholderOut:"过滤文本在这里…",noLine:"没有行超过所选长度。"}
+  };
+
+  /* Traduction dynamique */
+  const langSel=document.getElementById('langSel');
+  const els={
+    chooseBtn:document.getElementById('chooseBtn'),dropZone:document.getElementById('dropZone'),title:document.getElementById('title'),openCam:document.getElementById('openCam'),snapBtn:document.getElementById('snapBtn'),scanFileBtn:document.getElementById('scanFileBtn'),scanBtn:document.getElementById('scanBtn'),rawTitle:document.getElementById('rawTitle'),outTitle:document.getElementById('outTitle'),lenLabel:document.getElementById('lenLabel'),applyBtn:document.getElementById('applyBtn'),saveBtn:document.getElementById('saveBtn'),readBtn:document.getElementById('readBtn'),rawText:document.getElementById('rawText'),out:document.getElementById('out'),minLen:document.getElementById('minLen'),dropZone:document.getElementById('dropZone')
+  };
+  function setLang(l){
+    const t=texts[l];
+    Object.keys(t).forEach(k=>{if(els[k])els[k].textContent=t[k];});
+    els.rawText.placeholder=t.placeholderRaw; els.out.placeholder=t.placeholderOut;
+    localStorage.setItem('ocrLang',l);
+  }
+  langSel.onchange=()=>setLang(langSel.value);
+  const saved=localStorage.getItem('ocrLang'); if(saved) langSel.value=saved;
+  setLang(langSel.value);
+
+  /* Bouton « Choisir un fichier » */
+  const chooseBtn=document.getElementById('chooseBtn');
+  const fileInput=document.getElementById('fileInput');
+  chooseBtn.onclick=()=>fileInput.click();
+  fileInput.onchange=e=>{imgBlob=fileInput.files[0];scanFileBtn.disabled=!imgBlob;};
+
+  /* Glisser-déposer */
+  const dropZone=document.getElementById('dropZone');
+  dropZone.ondragover=e=>{e.preventDefault(); dropZone.style.borderColor='#fff';};
+  dropZone.ondragleave=e=>{e.preventDefault(); dropZone.style.borderColor='#ccc';};
+  dropZone.ondrop=e=>{
+    e.preventDefault(); dropZone.style.borderColor='#ccc';
+    const f=e.dataTransfer.files[0];
+    if(f&&(f.type.match(/image\/|application\/pdf/))){imgBlob=f;scanFileBtn.disabled=false;}
+  };
+
+  /* Caméra iPhone */
+  const video=document.getElementById('video'),openCam=document.getElementById('openCam'),snapBtn=document.getElementById('snapBtn'),scanBtn=document.getElementById('scanBtn'),scanFileBtn=document.getElementById('scanFileBtn'),out=document.getElementById('out'),saveBtn=document.getElementById('saveBtn'),readBtn=document.getElementById('readBtn'),applyBtn=document.getElementById('applyBtn');
   let stream,imgBlob;
   openCam.onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=stream;snapBtn.disabled=false;}catch(e){alert('Caméra refusée – HTTPS + Safari');}};
   snapBtn.onclick=()=>{const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);c.toBlob(b=>{imgBlob=b;scanBtn.disabled=false;},'image/png');};
-  fileInput.onchange=e=>{imgBlob=fileInput.files[0];scanFileBtn.disabled=!imgBlob;};
   scanFileBtn.onclick=()=>doOCR(imgBlob); scanBtn.onclick=()=>doOCR(imgBlob);
-  async function doOCR(b){out.value='⏳ OCR…';const w=await Tesseract.createWorker('fra');try{const r=await w.recognize(b);out.value=r.data.text;}catch(err){out.value='Erreur : '+err.message;}finally{w.terminate();}}
+  async function doOCR(b){const raw=document.getElementById('rawText'); raw.value='⏳ OCR…';const w=await Tesseract.createWorker('fra');try{const r=await w.recognize(b);raw.value=r.data.text;}catch(err){raw.value='Erreur : '+err.message;}finally{w.terminate();}}
+  applyBtn.onclick=()=>{
+    const seuil=parseInt(minLen.value,10)||1;
+    const lignes=document.getElementById('rawText').value.split(/\r?\n/).filter(l=>l.length>=seuil);
+    out.value=lignes.join('\n');
+    const t=texts[langSel.value]; if(!lignes.length) alert(t.noLine||'Aucune ligne ne dépasse la longueur choisie.');
+  };
   saveBtn.onclick=()=>{const b=new Blob([out.value],{type:'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='texte_ocr.txt';a.click();URL.revokeObjectURL(u);}
   readBtn.onclick=()=>{const u=new SpeechSynthesisUtterance(out.value);u.lang='fr-FR';speechSynthesis.speak(u);}
 </script>
